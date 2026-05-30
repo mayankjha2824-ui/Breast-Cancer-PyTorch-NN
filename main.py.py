@@ -1,4 +1,4 @@
-import numpy as np # pyright: ignore[reportMissingImports]
+import numpy as np 
 import pandas as pd
 import torch
 from sklearn.model_selection import train_test_split
@@ -18,40 +18,37 @@ encoder = LabelEncoder()
 y_train = encoder.fit_transform(y_train)
 y_test = encoder.transform(y_test)
 print(y_train)
-X_train_tensor = torch.from_numpy(X_train)
-X_test_tensor = torch.from_numpy(X_test)
-y_train_tensor = torch.from_numpy(y_train)
-y_test_tensor = torch.from_numpy(y_test)
-class MySimpleNN():
-    def __init__(self, X):
-        self.weights = torch.rand(X.shape[1],1,dtype = torch.float64, requires_grad = True)
-        self.bias = torch.zeros(1,dtype=torch.float64,requires_grad = True)
-    def forward(self,X):
-        z = torch.matmul(X,self.weights) + self.bias
-        y_pred = torch.sigmoid(z)
-        return y_pred
-    def loss_function(self,y_pred,y):
-        epsilon = 1e-7
-        y_pred = torch.clamp(y_pred,epsilon,1-epsilon)
-        loss = -(y_train_tensor * torch.log(y_pred)+(1 - y_train_tensor)* torch.log(1 - y_pred)).mean()
-        return loss
+X_train_tensor = torch.from_numpy(X_train).float()
+X_test_tensor = torch.from_numpy(X_test).float()
+y_train_tensor = torch.from_numpy(y_train).float()
+y_test_tensor = torch.from_numpy(y_test).float()
+import torch.nn as nn 
+class Model(nn.Module):
+   def __init__(self,num_features):
+      super().__init__()
+      self.network = nn.Sequential(nn.Linear(num_features,3),nn.ReLU(),nn.Linear(3,1),nn.Sigmoid())
+   def forward(self,features):
+      out = self.network(features)
+      return out 
 learning_rate = 0.1
-epochs = 200
-model = MySimpleNN(X_train_tensor)
+epochs = 25
+loss_function = nn.BCELoss()
+model = Model(X_train_tensor.shape[1])
+optimizer = torch.optim.Adam(model.parameters(),lr= learning_rate)
 for epoch in range(epochs):
-    y_pred = model.forward(X_train_tensor)
-    loss = model.loss_function(y_pred,y_train_tensor)
-    loss.backward()
-    with torch.no_grad():
-        model.weights -= learning_rate * model.weights.grad
-        model.bias -= learning_rate * model.bias.grad
-    model.weights.grad.zero_()
-    model.bias.grad.zero_()
-    print(f'Epoch:{epoch+1}, Loss :{loss.item()}')
+   y_pred = model.forward(X_train_tensor)
+   loss = loss_function(y_pred,y_train_tensor.view(-1,1))
+   optimizer.zero_grad()
+   loss.backward()
+   optimizer.step()
+   print(f"Epoch: {epoch + 1}, Loss: {loss.item():.4f}")
 with torch.no_grad():
-        y_pred = model.forward(X_test_tensor)
-        y_pred = (y_pred > 0.9).float()
-        accuracy = (y_pred == y_test_tensor).float().mean()
-        print(f'Accuracy: {accuracy.item()}')
+   y_pred = model.forward(X_test_tensor)
+   y_pred = (y_pred > 0.5).float()
+   accuracy = (y_pred==y_test_tensor).float().mean()
+   print(f"Accuray: {accuracy.item()*100:.2f}")
+
+   
+
 
   
